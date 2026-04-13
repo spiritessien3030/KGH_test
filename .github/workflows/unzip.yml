@@ -4,24 +4,25 @@ on:
   push:
     paths:
       - "NexusTrack.zip"
+  workflow_dispatch:   # ✅ allows manual run
 
 permissions:
   contents: write
 
 jobs:
   extract:
-    if: github.actor != 'github-actions[bot]'   # ✅ Proper loop prevention
+    if: github.actor != 'github-actions[bot]'   # ✅ prevent infinite loop
     runs-on: ubuntu-latest
 
     steps:
-      # 📥 Checkout repository (with push capability)
+      # 📥 Checkout repo
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           persist-credentials: true
           fetch-depth: 0
 
-      # 📦 Verify ZIP exists
+      # 📦 Check if ZIP exists
       - name: Verify ZIP file exists
         run: |
           if [ ! -f "NexusTrack.zip" ]; then
@@ -29,27 +30,27 @@ jobs:
             exit 1
           fi
 
-      # 🧪 Validate ZIP integrity (prevents corruption issues)
+      # 🧪 Validate ZIP integrity
       - name: Validate ZIP
         run: unzip -t NexusTrack.zip
 
-      # 📂 Extract ZIP safely
-      - name: Extract ZIP into repository
+      # 📂 Extract ZIP
+      - name: Extract ZIP
         run: |
           echo "📂 Extracting NexusTrack.zip..."
           unzip -o NexusTrack.zip -d .
 
-      # 🧹 Remove ZIP after extraction
-      - name: Delete ZIP file
+      # 🧹 Delete ZIP after extraction
+      - name: Remove ZIP
         run: |
-          echo "🧹 Removing ZIP file..."
+          echo "🧹 Deleting ZIP file..."
           rm -f NexusTrack.zip
 
-      # 🔍 Debug (optional but useful)
+      # 🔍 Debug (optional)
       - name: Show git status
         run: git status
 
-      # 💾 Commit changes (SAFE)
+      # 💾 Commit changes safely
       - name: Commit changes
         run: |
           git config user.name "github-actions[bot]"
@@ -63,7 +64,7 @@ jobs:
             git commit -m "CI: Extract NexusTrack.zip and remove archive"
           fi
 
-      # 🚀 Push changes (FIXED)
+      # 🚀 Push back to same branch
       - name: Push changes
         run: |
           git push origin HEAD:${{ github.ref_name }}
