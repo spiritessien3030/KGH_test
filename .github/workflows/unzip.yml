@@ -1,0 +1,44 @@
+name: Extract NexusTrack ZIP
+
+on:
+  push:
+    paths:
+      - "NexusTrack.zip"
+
+jobs:
+  unzip:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 📦 Verify ZIP exists
+        run: |
+          if [ ! -f "NexusTrack.zip" ]; then
+            echo "ZIP file not found!"
+            exit 1
+          fi
+
+      - name: 📂 Extract ZIP
+        run: |
+          unzip -o NexusTrack.zip -d .
+
+      - name: 🧹 Remove ZIP after extraction
+        run: |
+          rm -f NexusTrack.zip
+
+      - name: 🔍 Check changes
+        run: |
+          git status
+
+      - name: 💾 Commit extracted files
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add .
+          git commit -m "Auto-extracted NexusTrack.zip and removed archive" || echo "No changes to commit"
+
+      - name: 🚀 Push changes
+        run: |
+          git push
