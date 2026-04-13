@@ -10,29 +10,28 @@ permissions:
 
 jobs:
   extract:
+    if: github.actor != 'github-actions[bot]'   # ✅ Proper loop prevention
     runs-on: ubuntu-latest
 
     steps:
-      # 🧾 Checkout repo
+      # 📥 Checkout repository (with push capability)
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
+          persist-credentials: true
           fetch-depth: 0
 
-      # 🚫 Prevent infinite loop (skip bot commits)
-      - name: Stop if triggered by bot
-        if: github.actor == 'github-actions[bot]'
-        run: |
-          echo "Triggered by bot, skipping to avoid loop"
-          exit 0
-
-      # 📦 Ensure ZIP exists
+      # 📦 Verify ZIP exists
       - name: Verify ZIP file exists
         run: |
           if [ ! -f "NexusTrack.zip" ]; then
             echo "❌ NexusTrack.zip not found!"
             exit 1
           fi
+
+      # 🧪 Validate ZIP integrity (prevents corruption issues)
+      - name: Validate ZIP
+        run: unzip -t NexusTrack.zip
 
       # 📂 Extract ZIP safely
       - name: Extract ZIP into repository
@@ -46,21 +45,25 @@ jobs:
           echo "🧹 Removing ZIP file..."
           rm -f NexusTrack.zip
 
-      # 🔍 Show changes (debugging)
+      # 🔍 Debug (optional but useful)
       - name: Show git status
         run: git status
 
-      # 💾 Commit changes if any
-      - name: Commit extracted files
+      # 💾 Commit changes (SAFE)
+      - name: Commit changes
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions@users.noreply.github.com"
 
-          git add .
+          git add -A
 
-          git diff --cached --quiet || git commit -m "CI: Extract NexusTrack.zip and remove archive"
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "CI: Extract NexusTrack.zip and remove archive"
+          fi
 
-      # 🚀 Push changes back to repo
+      # 🚀 Push changes (FIXED)
       - name: Push changes
         run: |
           git push origin HEAD:${{ github.ref_name }}
