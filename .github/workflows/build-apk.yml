@@ -1,8 +1,8 @@
-name: Build APK (Auto Fix Gradle)
+name: Build APK (Full Auto Fix)
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   workflow_dispatch:
 
 jobs:
@@ -10,50 +10,94 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # =========================
+      # 1. Checkout
+      # =========================
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # =========================
+      # 2. Setup Java
+      # =========================
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
 
+      # =========================
+      # 3. Install Gradle (fallback)
+      # =========================
       - name: Install Gradle
         run: |
           sudo apt-get update
           sudo apt-get install -y gradle
 
-      # ✅ AUTO GENERATE GRADLE WRAPPER IF MISSING
-      - name: Generate Gradle Wrapper if missing
+      # =========================
+      # 4. Generate Gradle Wrapper if missing
+      # =========================
+      - name: Ensure Gradle Wrapper
         run: |
           if [ ! -f "./gradlew" ]; then
-            echo "gradlew not found — generating wrapper..."
+            echo "gradlew missing → generating wrapper..."
             gradle wrapper
           fi
 
       - name: Make gradlew executable
         run: chmod +x gradlew || true
 
-      - name: Show project structure (debug)
+      # =========================
+      # 5. Debug project structure
+      # =========================
+      - name: Show project structure
         run: |
-          echo "===== ROOT FILES ====="
-          ls -la
-          echo "===== APP STRUCTURE ====="
-          find . -maxdepth 3 -type f
+          echo "===== FILE TREE ====="
+          ls -R | head -200
 
-      - name: Build APK (Debug)
+      # =========================
+      # 6. Build APK + log output
+      # =========================
+      - name: Build APK
         run: |
-          ./gradlew assembleDebug | tee build.log
+          if [ -f "./gradlew" ]; then
+            ./gradlew assembleDebug | tee build.log
+          else
+            gradle assembleDebug | tee build.log
+          fi
 
-      # ✅ Upload APK
-      - name: Upload APK
+      # =========================
+      # 7. Find APK dynamically
+      # =========================
+      - name: Locate APK files
+        run: |
+          echo "Searching for APK files..."
+          find . -type f -name "*.apk" | tee apk-list.txt
+
+      # =========================
+      # 8. Fail if no APK exists
+      # =========================
+      - name: Verify APK generated
+        run: |
+          if ! find . -name "*.apk" | grep -q apk; then
+            echo "❌ BUILD FAILED: No APK generated"
+            echo "Check logs below"
+            cat build.log
+            exit 1
+          fi
+
+      # =========================
+      # 9. Upload APK (dynamic path)
+      # =========================
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: app-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
+          name: apk-output
+          path: |
+            **/*.apk
 
-      # ✅ Upload full build logs
+      # =========================
+      # 10. Upload full build logs
+      # =========================
       - name: Upload build logs
         uses: actions/upload-artifact@v4
         with:
