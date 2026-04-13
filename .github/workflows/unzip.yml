@@ -1,44 +1,66 @@
-name: Extract NexusTrack ZIP
+name: Auto Extract NexusTrack ZIP
 
 on:
   push:
     paths:
       - "NexusTrack.zip"
 
+permissions:
+  contents: write
+
 jobs:
-  unzip:
+  extract:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📥 Checkout Repository
+      # 🧾 Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: 📦 Verify ZIP exists
+      # 🚫 Prevent infinite loop (skip bot commits)
+      - name: Stop if triggered by bot
+        if: github.actor == 'github-actions[bot]'
+        run: |
+          echo "Triggered by bot, skipping to avoid loop"
+          exit 0
+
+      # 📦 Ensure ZIP exists
+      - name: Verify ZIP file exists
         run: |
           if [ ! -f "NexusTrack.zip" ]; then
-            echo "ZIP file not found!"
+            echo "❌ NexusTrack.zip not found!"
             exit 1
           fi
 
-      - name: 📂 Extract ZIP
+      # 📂 Extract ZIP safely
+      - name: Extract ZIP into repository
         run: |
+          echo "📂 Extracting NexusTrack.zip..."
           unzip -o NexusTrack.zip -d .
 
-      - name: 🧹 Remove ZIP after extraction
+      # 🧹 Remove ZIP after extraction
+      - name: Delete ZIP file
         run: |
+          echo "🧹 Removing ZIP file..."
           rm -f NexusTrack.zip
 
-      - name: 🔍 Check changes
-        run: |
-          git status
+      # 🔍 Show changes (debugging)
+      - name: Show git status
+        run: git status
 
-      - name: 💾 Commit extracted files
+      # 💾 Commit changes if any
+      - name: Commit extracted files
         run: |
-          git config user.name "github-actions"
-          git config user.email "actions@github.com"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions@users.noreply.github.com"
+
           git add .
-          git commit -m "Auto-extracted NexusTrack.zip and removed archive" || echo "No changes to commit"
 
-      - name: 🚀 Push changes
+          git diff --cached --quiet || git commit -m "CI: Extract NexusTrack.zip and remove archive"
+
+      # 🚀 Push changes back to repo
+      - name: Push changes
         run: |
-          git push
+          git push origin HEAD:${{ github.ref_name }}
